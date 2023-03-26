@@ -1,6 +1,8 @@
+import { writeAll } from "https://deno.land/std@0.181.0/streams/write_all.ts";
+
 const writeFile = async (path: string, lines: string[]) => {
     const file = await Deno.open(path, { create: true, write: true });
-    await Deno.writeAll(file, new TextEncoder().encode(lines.join("\n")));
+    await writeAll(file, new TextEncoder().encode(lines.join("\n")));
     file.close();
 
     await Deno.chmod(path, 0o755);
