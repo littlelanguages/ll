@@ -20,8 +20,6 @@ console.log(`Creating ${homeDir}/bin/tlca`);
 await writeFile(`${homeDir}/bin/tlca`, [
     "#!/bin/bash",
     "",
-    'BASE_DIR=$(dirname "$0")',
-    "",
-    'deno run --allow-all "$BASE_DIR"/tlca.ts $*',
+    'deno run --allow-allhttps://raw.githubusercontent.com/littlelanguages/ll/v1.0.0/bin/tlca.ts $*',
     ""
 ]);
