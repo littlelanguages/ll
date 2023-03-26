@@ -18,7 +18,8 @@ installed, you can run the scripts with the following command:
 deno run --allow-all --reload https://raw.githubusercontent.com/littlelanguages/ll/main/setup.ts
 ```
 
-This will download the latest version of the setup scripts and install them into the correct locations.  It is also necessary to add
+This will download the latest version of the setup scripts and install them into
+the correct locations. It is also necessary to add
 
 ```
 ~/.ll/bin
@@ -28,7 +29,8 @@ into your path.
 
 ## Testing the Setup
 
-To test the setup, create a directory and add the following file named `x.tlca` with the contents:
+To test the setup, create a directory and add the following file named `x.tlca`
+with the contents:
 
 ```
 let x = 10
@@ -40,7 +42,7 @@ x + y
 Then run the following command:
 
 ```bash
-ll-tlca run x.tlca 
+ll-tlca run x.tlca
 ```
 
 If everything is working correctly, you should see the following output:
