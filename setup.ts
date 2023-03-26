@@ -17,7 +17,7 @@ await Deno.mkdir(`${homeDir}/bin`, { recursive: true });
 await Deno.mkdir(`${homeDir}/libs`, { recursive: true });
 
 console.log(`Creating ${homeDir}/bin/ll`);
-await writeFile(`${homeDir}/bin/ll-tlca`, [
+await writeFile(`${homeDir}/bin/ll`, [
     "#!/bin/bash",
     "",
     'deno run --allow-all --reload https://raw.githubusercontent.com/littlelanguages/ll/main/setup.ts $*',
@@ -31,3 +31,6 @@ await writeFile(`${homeDir}/bin/ll-tlca`, [
     'deno run --allow-all https://raw.githubusercontent.com/littlelanguages/ll/v1.0.0/bin/tlca.ts $*',
     ""
 ]);
+
+console.log(`Downloading ${homeDir}/bin/ll-tlca assets`);
+await Deno.run({ cmd: [`${homeDir}/bin/ll-tlca`, "setup"] }).status();
