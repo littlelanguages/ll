@@ -45,7 +45,7 @@ Then run the following command:
 ll-tlca run x.tlca
 ```
 
-If everything is working correctly, you should see the following output:
+If everything is working correctly, you will see the following output:
 
 ```
 x = 10: Int
