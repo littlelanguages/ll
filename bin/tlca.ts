@@ -41,11 +41,12 @@ const libPath = (name: string) =>
 const denoName = (script: string) =>
   `https://raw.githubusercontent.com/littlelanguages/ll-tlca/${version}/components/${script}`;
 
-const stat = async (name: string): Promise<Deno.FileInfo | undefined> => {
+const fileDateTime = async (name: string): Promise<number> => {
   try {
-    await Deno.stat(name);
-  } catch (_e) {
-    return undefined;
+    const lstat = await Deno.lstat(name);
+    return lstat?.mtime?.getTime() || 0;
+  } catch (_) {
+    return 0;
   }
 };
 
@@ -182,12 +183,9 @@ const runCmd = new CLI.ValueCommand(
       : file.replace(".tlca.bin", ".tlca");
     const targetFile = `${srcFile}.bin`;
 
-    const srcFileState = (await stat(srcFile))!;
-    const targetFileState = await stat(targetFile);
-    if (
-      targetFileState === undefined ||
-      (srcFileState.mtime ?? 0) > (targetFileState.mtime ?? 0)
-    ) {
+    const srcFileDataTime = (await fileDateTime(srcFile))!;
+    const targetFileDataTime = await fileDateTime(targetFile);
+    if (srcFileDataTime > targetFileDataTime) {
       await compile(srcFile);
     }
 
