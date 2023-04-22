@@ -52,3 +52,20 @@ x = 10: Int
 y = 13: Int
 23: Int
 ```
+
+Another scenario - STLC with
+
+```
+let rec
+  factorial n =
+    if (n == 0) 1 else n * (factorial (n - 1))
+in
+  factorial 5
+```
+
+returning
+
+```
+120: Int
+```
+```

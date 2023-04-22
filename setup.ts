@@ -27,6 +27,17 @@ await writeFile(`${homeDir}/bin/ll`, [
   "",
 ]);
 
+console.log(`Creating ${homeDir}/bin/ll-stlc`);
+await writeFile(`${homeDir}/bin/ll-stlc`, [
+  "#!/bin/bash",
+  "",
+  "deno run --allow-all https://raw.githubusercontent.com/littlelanguages/ll/v1.0.0/bin/stlc.ts $*",
+  "",
+]);
+
+console.log(`Downloading ${homeDir}/bin/ll-stlc assets`);
+await Deno.run({ cmd: [`${homeDir}/bin/ll-stlc`, "setup"] }).status();
+
 console.log(`Creating ${homeDir}/bin/ll-tlca`);
 await writeFile(`${homeDir}/bin/ll-tlca`, [
   "#!/bin/bash",
