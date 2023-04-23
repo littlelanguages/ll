@@ -5,7 +5,7 @@ self-contained, and easy to understand. The goal is to learn about the design
 and implementation of programming languages, and to have fun doing it.
 
 Specifically this project has the scripts needed to execute the output from my
-efforts. The scripts are written in Deno and bash and are intended to be run on
+efforts. The scripts are written in [Deno](https://deno.land) and are intended to be run on
 Linux or Mac.
 
 The projects that are included in this repository are:
@@ -25,7 +25,7 @@ The projects that are included in this repository are:
 
 To run the scripts, you will need to install Deno. You can find instructions for
 installing Deno [here](https://deno.land/#installation). Once you have Deno
-installed, you can run the scripts with the following command:
+installed, run the scripts with the following command:
 
 ```bash
 deno run --allow-all --reload https://raw.githubusercontent.com/littlelanguages/ll/main/setup.ts
@@ -83,3 +83,4 @@ The following commands are available and can be entered from the command line.
 | Start a `tlca` REPL | `ll-tlca repl` |
 | Interpret a `tlca` program | `ll-tlca repl <file>` |
 
+Most of all, use the `help` command to get more information on the commands.
