@@ -1,8 +1,7 @@
 import * as CLI from "https://raw.githubusercontent.com/littlelanguages/deno-lib-console-cli/0.1.2/mod.ts";
 import { writeAll } from "https://deno.land/std@0.175.0/streams/write_all.ts";
 
-// const version = "v1.0.0";
-const version = "main";
+const version = "v1.0.0";
 
 // compile
 // run -i (bci)
