@@ -1,6 +1,9 @@
 import * as CLI from "https://raw.githubusercontent.com/littlelanguages/deno-lib-console-cli/0.1.2/mod.ts";
-import { writeAll } from "https://deno.land/std@0.175.0/streams/write_all.ts";
+import * as Errors from "../common/system/Errors.ts";
+import * as IO from "../common/system/IO.ts";
+import { FileNameValidator, NameConfiguration } from "./common.ts";
 
+const languageName = "stlc";
 const version = "v1.0.0";
 
 // compile
@@ -9,13 +12,6 @@ const version = "v1.0.0";
 // asm (bci)
 // setup
 
-const languageName = "stlc";
-
-const panic = (msg: string) => {
-  console.error(msg);
-  Deno.exit(1);
-};
-
 const binaryName = () => {
   const arch = Deno.build.arch;
   const os = Deno.build.os;
@@ -23,17 +19,19 @@ const binaryName = () => {
   return `${languageName}-bci-c-${os}-${arch}`;
 };
 
+const nameConfiguration: NameConfiguration = {
+  sourceSuffix: `.${languageName}`,
+  targetSuffix: `.${languageName}.bin`,
+};
+
 const jarName = () => `${languageName}.jar`;
 
 const downloadLatest = async (name: string) => {
-  console.log(`Downloading ${name}...`);
-  const artifact = await (await fetch(
-    `https://littlelanguages.blob.core.windows.net/${languageName}/${name}`,
-  ))
-    .arrayBuffer();
-  const file = await Deno.open(libPath(name), { create: true, write: true });
-  await writeAll(file, new Uint8Array(artifact));
-  file.close();
+  const source =
+    `https://littlelanguages.blob.core.windows.net/${languageName}/${name}`;
+  const saveFileName = libPath(name);
+
+  await IO.downloadAndSave(source, saveFileName);
 };
 
 const libPath = (name: string) =>
@@ -43,15 +41,6 @@ const libPath = (name: string) =>
 
 const denoName = (script: string) =>
   `https://raw.githubusercontent.com/littlelanguages/ll-${languageName}/${version}/components/${script}`;
-
-const fileDateTime = async (name: string): Promise<number> => {
-  try {
-    const lstat = await Deno.lstat(name);
-    return lstat?.mtime?.getTime() || 0;
-  } catch (_) {
-    return 0;
-  }
-};
 
 const compile = async (file: string) => {
   const cmd: Array<string> = [
@@ -80,17 +69,14 @@ const compileCmd = new CLI.ValueCommand(
     file: string | undefined,
     _vals: Map<string, unknown>,
   ) => {
-    if (file === undefined) {
-      panic("Error: Source file has not been supplied");
-      file = "fred"; // to stop the compiler complaining
-    }
-    if (!file.endsWith(`.${languageName}`)) {
-      panic(
+    const validator = FileNameValidator(file, nameConfiguration);
+    if (!validator.hasSourceSuffix) {
+      Errors.panic(
         `Error: Source file does not have a .${languageName} extension: ${file}`,
       );
     }
 
-    await compile(file);
+    await compile(file!);
   },
 );
 
@@ -113,16 +99,10 @@ const disCmd = new CLI.ValueCommand(
     file: string | undefined,
     vals: Map<string, unknown>,
   ) => {
-    if (file === undefined) {
-      panic("Error: No file has been supplied");
-      file = "fred"; // to stop the compiler complaining
-    }
+    const validator = FileNameValidator(file, nameConfiguration);
 
-    if (
-      !file.endsWith(`.${languageName}`) &&
-      !file.endsWith(`.${languageName}.bin`)
-    ) {
-      panic(
+    if (!validator.hasSourceSuffix && !validator.hasTargetSuffix) {
+      Errors.panic(
         `Error: Bytecode file does not end with a .${languageName} or .${languageName}.bin extension: ${file}`,
       );
     }
@@ -144,16 +124,10 @@ const disCmd = new CLI.ValueCommand(
         "dis",
       ];
     } else {
-      panic(`Error: Unknown implementation: ${implementation}`);
+      Errors.panic(`Error: Unknown implementation: ${implementation}`);
     }
+    cmd.push(validator.targetName());
 
-    if (file !== undefined) {
-      cmd.push(
-        file.endsWith(`.${languageName}`)
-          ? file.replace(`.${languageName}`, `.${languageName}.bin`)
-          : file,
-      );
-    }
     await Deno.run({ cmd }).status();
   },
 );
@@ -177,29 +151,16 @@ const runCmd = new CLI.ValueCommand(
     file: string | undefined,
     vals: Map<string, unknown>,
   ) => {
-    if (file === undefined) {
-      panic("Error: No file has been supplied");
-      file = "fred"; // to stop the compiler complaining
-    }
+    const validator = FileNameValidator(file, nameConfiguration);
 
-    if (
-      !file.endsWith(`.${languageName}`) &&
-      !file.endsWith(`.${languageName}.bin`)
-    ) {
-      panic(
+    if (!validator.hasSourceSuffix && !validator.hasTargetSuffix) {
+      Errors.panic(
         `Error: Bytecode file does not end with a .${languageName} or .${languageName}.bin extension: ${file}`,
       );
     }
 
-    const srcFile = file.endsWith(`.${languageName}`)
-      ? file
-      : file.replace(`.${languageName}.bin`, `.${languageName}`);
-    const targetFile = `${srcFile}.bin`;
-
-    const srcFileDataTime = (await fileDateTime(srcFile))!;
-    const targetFileDataTime = await fileDateTime(targetFile);
-    if (srcFileDataTime > targetFileDataTime) {
-      await compile(srcFile);
+    if (await validator.mustRebuild()) {
+      await compile(validator.sourceName());
     }
 
     const implementation = vals.get("implementation") || "c";
@@ -218,16 +179,10 @@ const runCmd = new CLI.ValueCommand(
         "run",
       ];
     } else {
-      panic(`Error: Unknown implementation: ${implementation}`);
+      Errors.panic(`Error: Unknown implementation: ${implementation}`);
     }
+    cmd.push(validator.targetName());
 
-    if (file !== undefined) {
-      cmd.push(
-        file.endsWith(`.${languageName}`)
-          ? file.replace(`.${languageName}`, `.${languageName}.bin`)
-          : file,
-      );
-    }
     await Deno.run({ cmd }).status();
   },
 );
@@ -270,7 +225,7 @@ const replCmd = new CLI.ValueCommand(
         denoName("deno/Repl.ts"),
       ];
     } else {
-      panic(`Error: Unknown implementation: ${implementation}`);
+      Errors.panic(`Error: Unknown implementation: ${implementation}`);
     }
 
     if (file !== undefined) {

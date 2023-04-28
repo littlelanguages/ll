@@ -1,6 +1,9 @@
 import * as CLI from "https://raw.githubusercontent.com/littlelanguages/deno-lib-console-cli/0.1.2/mod.ts";
-import { writeAll } from "https://deno.land/std@0.175.0/streams/write_all.ts";
+import * as Errors from "../common/system/Errors.ts";
+import { FileNameValidator, libPath, NameConfiguration } from "./common.ts";
+import * as IO from "../common/system/IO.ts";
 
+const languageName = "tlca";
 const version = "v1.0.0";
 
 // compile
@@ -9,46 +12,29 @@ const version = "v1.0.0";
 // asm (bci)
 // setup
 
-const panic = (msg: string) => {
-  console.error(msg);
-  Deno.exit(1);
-};
-
 const binaryName = () => {
   const arch = Deno.build.arch;
   const os = Deno.build.os;
 
-  return `tlca-bci-c-${os}-${arch}`;
+  return `${languageName}-bci-c-${os}-${arch}`;
 };
 
-const jarName = () => "tlca.jar";
+const nameConfiguration: NameConfiguration = {
+  sourceSuffix: `.${languageName}`,
+  targetSuffix: `.${languageName}.bin`,
+};
+
+const jarName = () => `${languageName}.jar`;
 
 const downloadLatest = async (name: string) => {
-  console.log(`Downloading ${name}...`);
-  const artifact =
-    await (await fetch(`https://lltlca.blob.core.windows.net/bin/${name}`))
-      .arrayBuffer();
-  const file = await Deno.open(libPath(name), { create: true, write: true });
-  await writeAll(file, new Uint8Array(artifact));
-  file.close();
-};
+  const source = `https://lltlca.blob.core.windows.net/bin/${name}`;
+  const saveFileName = libPath(name);
 
-const libPath = (name: string) =>
-  `${
-    Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "."
-  }/.ll/libs/${name}`;
+  await IO.downloadAndSave(source, saveFileName);
+};
 
 const denoName = (script: string) =>
-  `https://raw.githubusercontent.com/littlelanguages/ll-tlca/${version}/components/${script}`;
-
-const fileDateTime = async (name: string): Promise<number> => {
-  try {
-    const lstat = await Deno.lstat(name);
-    return lstat?.mtime?.getTime() || 0;
-  } catch (_) {
-    return 0;
-  }
-};
+  `https://raw.githubusercontent.com/littlelanguages/ll-${languageName}/${version}/components/${script}`;
 
 const compile = async (file: string) => {
   const cmd: Array<string> = [
@@ -56,7 +42,7 @@ const compile = async (file: string) => {
     "-jar",
     libPath(jarName()),
     file,
-    file.replace(".tlca", ".tlca.bin"),
+    file.replace(`.${languageName}`, `.${languageName}.bin`),
   ];
 
   await Deno.run({ cmd }).status();
@@ -64,7 +50,7 @@ const compile = async (file: string) => {
 
 const compileCmd = new CLI.ValueCommand(
   "compile",
-  "Compile a .tlca source file to a .tlca.bin bytecode file",
+  `Compile a .${languageName} source file to a .${languageName}.bin bytecode file`,
   [],
   {
     name: "FILE",
@@ -77,21 +63,21 @@ const compileCmd = new CLI.ValueCommand(
     file: string | undefined,
     _vals: Map<string, unknown>,
   ) => {
-    if (file === undefined) {
-      panic("Error: Source file has not been supplied");
-      file = "fred"; // to stop the compiler complaining
-    }
-    if (!file.endsWith(".tlca")) {
-      panic(`Error: Source file does not have a .tlca extension: ${file}`);
+    const validator = FileNameValidator(file, nameConfiguration);
+
+    if (!validator.hasSourceSuffix) {
+      Errors.panic(
+        `Error: Source file does not have a .${languageName} extension: ${file}`,
+      );
     }
 
-    await compile(file);
+    await compile(file!);
   },
 );
 
 const disCmd = new CLI.ValueCommand(
   "dis",
-  "Disassemble a compiled .tlca bytecode file",
+  `Disassemble a compiled .${languageName} bytecode file`,
   [
     new CLI.ValueOption(
       ["--implementation", "-i"],
@@ -108,14 +94,11 @@ const disCmd = new CLI.ValueCommand(
     file: string | undefined,
     vals: Map<string, unknown>,
   ) => {
-    if (file === undefined) {
-      panic("Error: No file has been supplied");
-      file = "fred"; // to stop the compiler complaining
-    }
+    const validator = FileNameValidator(file, nameConfiguration);
 
-    if (!file.endsWith(".tlca") && !file.endsWith(".tlca.bin")) {
-      panic(
-        `Error: Bytecode file does not end with a .tlca or .tlca.bin extension: ${file}`,
+    if (!validator.hasSourceSuffix && !validator.hasTargetSuffix) {
+      Errors.panic(
+        `Error: Bytecode file does not end with a .${languageName} or .${languageName}.bin extension: ${file}`,
       );
     }
 
@@ -123,34 +106,21 @@ const disCmd = new CLI.ValueCommand(
 
     let cmd: Array<string> = [];
     if (implementation === "c") {
-      cmd = [
-        libPath(binaryName()),
-        "dis",
-      ];
+      cmd = [libPath(binaryName()), "dis"];
     } else if (implementation === "deno") {
-      cmd = [
-        "deno",
-        "run",
-        "--allow-read",
-        denoName("bci-deno/bci.ts"),
-        "dis",
-      ];
+      cmd = ["deno", "run", "--allow-read", denoName("bci-deno/bci.ts"), "dis"];
     } else {
-      panic(`Error: Unknown implementation: ${implementation}`);
+      Errors.panic(`Error: Unknown implementation: ${implementation}`);
     }
 
-    if (file !== undefined) {
-      cmd.push(
-        file.endsWith(".tlca") ? file.replace(".tlca", ".tlca.bin") : file,
-      );
-    }
+    cmd.push(validator.targetName());
     await Deno.run({ cmd }).status();
   },
 );
 
 const runCmd = new CLI.ValueCommand(
   "run",
-  "Run a compiled .tlca bytecode file",
+  `Run a compiled .${languageName} bytecode file`,
   [
     new CLI.ValueOption(
       ["--implementation", "-i"],
@@ -167,59 +137,37 @@ const runCmd = new CLI.ValueCommand(
     file: string | undefined,
     vals: Map<string, unknown>,
   ) => {
-    if (file === undefined) {
-      panic("Error: No file has been supplied");
-      file = "fred"; // to stop the compiler complaining
-    }
+    const validator = FileNameValidator(file, nameConfiguration);
 
-    if (!file.endsWith(".tlca") && !file.endsWith(".tlca.bin")) {
-      panic(
-        `Error: Bytecode file does not end with a .tlca or .tlca.bin extension: ${file}`,
+    if (!validator.hasSourceSuffix && !validator.hasTargetSuffix) {
+      Errors.panic(
+        `Error: Bytecode file does not end with a .${languageName}} or .${languageName}.bin extension: ${file}`,
       );
     }
 
-    const srcFile = file.endsWith(".tlca")
-      ? file
-      : file.replace(".tlca.bin", ".tlca");
-    const targetFile = `${srcFile}.bin`;
-
-    const srcFileDataTime = (await fileDateTime(srcFile))!;
-    const targetFileDataTime = await fileDateTime(targetFile);
-    if (srcFileDataTime > targetFileDataTime) {
-      await compile(srcFile);
+    if (await validator.mustRebuild()) {
+      await compile(validator.sourceName());
     }
 
     const implementation = vals.get("implementation") || "c";
     let cmd: Array<string> = [];
     if (implementation === "c") {
-      cmd = [
-        libPath(binaryName()),
-        "run",
-      ];
+      cmd = [libPath(binaryName()), "run"];
     } else if (implementation === "deno") {
-      cmd = [
-        "deno",
-        "run",
-        "--allow-read",
-        denoName("bci-deno/bci.ts"),
-        "run",
-      ];
+      cmd = ["deno", "run", "--allow-read", denoName("bci-deno/bci.ts"), "run"];
     } else {
-      panic(`Error: Unknown implementation: ${implementation}`);
+      Errors.panic(`Error: Unknown implementation: ${implementation}`);
     }
 
-    if (file !== undefined) {
-      cmd.push(
-        file.endsWith(".tlca") ? file.replace(".tlca", ".tlca.bin") : file,
-      );
-    }
+    cmd.push(validator.targetName());
+
     await Deno.run({ cmd }).status();
   },
 );
 
 const replCmd = new CLI.ValueCommand(
   "repl",
-  "A REPL for TLCA",
+  `A REPL for ${languageName}`,
   [
     new CLI.ValueOption(
       ["--implementation", "-i"],
@@ -255,7 +203,7 @@ const replCmd = new CLI.ValueCommand(
         denoName("deno/Repl.ts"),
       ];
     } else {
-      panic(`Error: Unknown implementation: ${implementation}`);
+      Errors.panic(`Error: Unknown implementation: ${implementation}`);
     }
 
     if (file !== undefined) {
@@ -295,7 +243,7 @@ const setupCmd = new CLI.ValueCommand(
 );
 
 const cli = {
-  name: "tlca",
+  name: languageName,
   help: "Typed Lambda Calculus with ADT's CLI",
   options: [CLI.helpFlag],
   cmds: [compileCmd, disCmd, replCmd, runCmd, setupCmd, CLI.helpCmd],
