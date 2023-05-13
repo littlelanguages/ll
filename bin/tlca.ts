@@ -81,7 +81,7 @@ const disCmd = new CLI.ValueCommand(
   [
     new CLI.ValueOption(
       ["--implementation", "-i"],
-      "The implementation to be used - options are deno, c for the Deno and C implementations respectively.  The default is Deno.",
+      "The implementation to be used - options are deno, zig for the Deno and Zig implementations respectively.  The default is Deno.",
     ),
   ],
   {
@@ -105,7 +105,7 @@ const disCmd = new CLI.ValueCommand(
     const implementation = vals.get("implementation") || "deno";
 
     let cmd: Array<string> = [];
-    if (implementation === "c") {
+    if (implementation === "zig") {
       cmd = [libPath(binaryName()), "dis"];
     } else if (implementation === "deno") {
       cmd = ["deno", "run", "--allow-read", denoName("bci-deno/bci.ts"), "dis"];
@@ -124,7 +124,7 @@ const runCmd = new CLI.ValueCommand(
   [
     new CLI.ValueOption(
       ["--implementation", "-i"],
-      "The implementation to be used - options are deno, c for the Deno and C implementations respectively.  The default is C.",
+      "The implementation to be used - options are deno, zig for the Deno and Zig implementations respectively.  The default is zig.",
     ),
   ],
   {
