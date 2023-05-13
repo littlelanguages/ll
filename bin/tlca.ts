@@ -16,7 +16,7 @@ const binaryName = () => {
   const arch = Deno.build.arch;
   const os = Deno.build.os;
 
-  return `${languageName}-bci-c-${os}-${arch}`;
+  return `${languageName}-bci-zig-${os}-${arch}`;
 };
 
 const nameConfiguration: NameConfiguration = {
@@ -149,9 +149,9 @@ const runCmd = new CLI.ValueCommand(
       await compile(validator.sourceName());
     }
 
-    const implementation = vals.get("implementation") || "c";
+    const implementation = vals.get("implementation") || "zig";
     let cmd: Array<string> = [];
-    if (implementation === "c") {
+    if (implementation === "zig") {
       cmd = [libPath(binaryName()), "run"];
     } else if (implementation === "deno") {
       cmd = ["deno", "run", "--allow-read", denoName("bci-deno/bci.ts"), "run"];
